@@ -14,7 +14,7 @@
 		"react-native": "0.64.0",
 		"react-native-dialog": "^6.2.0",
 		"react-native-document-picker": "^5.0.0",
-		"react-native-qcc-dfu": "git+ssh://git@github.com:CodingPapi/react-native-qcc-dfu.git"
+		"react-native-qcc-dfu": "git+ssh://git@github.com:CodingPapi/react-native-qcc-dfu.git#main"
 	},
 	"devDependencies": {
 		"@babel/core": "^7.12.9",

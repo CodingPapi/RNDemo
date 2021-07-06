@@ -27,8 +27,14 @@ const App = () => {
     emitter.addListener('EventDeviceUpgradeProcess', upgradeProcess)
     emitter.addListener('EventDeviceUpgradeState', upgradeStateChanged)
     emitter.addListener('EventDeviceUpgradeAppVersion', upgradeAppVersionChanged)
+    emitter.addListener('EventDeviceUpgradeButtonActions', onButtonActionsChanged)
+    emitter.addListener('EventDeviceUpgradeButtonActionsResult', onButtonActionsUpdateResult)
 
-  }, [])
+    emitter.addListener('EventDeviceEQState', onEQStateUpdate)
+    emitter.addListener('EventDeviceEQPresetsUpdate', onEQPresetsUpdate)
+    emitter.addListener('EventDeviceEQSelectedPreset', onEQPresetSelected)
+
+  },[])
 
   const connectDevice = (device: BluetoothDevice) => {
     RNQccDfu.connectDevice(device.name, device.address, deviceConnectCallback)
@@ -41,6 +47,7 @@ const App = () => {
   const deviceConnectedStateChange = (device: BluetoothDevice) => {
     if (device.connected === 'true') {
       setConnectedDevice(device)
+      RNQccDfu.getApplicationVersion()
     } else {
       setConnectedDevice(undefined)
     }
@@ -88,6 +95,33 @@ const App = () => {
   const upgradeAppVersionChanged = (data: AppVersion) => {
     setAppVersion(data.appVersion)
   }
+  const onButtonActionsChanged = (data: ButtonConfiguration) => {
+    console.log(data)
+  }
+
+  const onButtonActionsUpdateResult = (data: ButtonActionUpdateResult) => {
+    console.log(data)
+  }
+
+  const onEQStateUpdate = (data: EQStateResult) => {
+    console.log(data)
+  }
+  const onEQPresetsUpdate = (data: EQAvailablePresets) => {
+    console.log(data)
+  }
+  const onEQPresetSelected = (data: EQPreset) => {
+    console.log(data)
+  }
+
+  const getCurrentButtonActions = () => {
+    RNQccDfu.getCurrentButtonActions()
+  }
+  const getDefaultButtonActions = () => {
+    RNQccDfu.getDefaultButtonActions()
+  }
+  const configButtonActions = (data: CurrentButtonConf) => {
+    RNQccDfu.configButtonActions(data)
+  }
   const upgradeProcess = (data: UpgradeProcess) => {
     setProcess(data.upgradeProgress)
   }
@@ -102,11 +136,60 @@ const App = () => {
       <Text>You selected {fireUri} </Text>
       <Button onPress={() => pickFile()} title='pick file' />
 
+      <Button onPress={() => getDefaultButtonActions()} title='get default actions' />
+      <Button onPress={() => getCurrentButtonActions()} title='get current actions' />
+
+      <Button onPress={() => configButtonActions({
+        enabled: true,
+        cancelSiri: {
+          ear: "LR",
+          action: "SINGLECLICK"
+        },
+        pausePlay: {
+          ear: "LR",
+          action: "DOUBLECLICK"
+        },
+        nextItem: {
+          ear: "R",
+          action: "DOUBLECLICK"
+        },
+        pickHang: {
+          ear: "LR",
+          action: "SINGLECLICK"
+        },
+        preItem: {
+          ear: "L",
+          action: "DOUBLECLICK"
+        },
+        screenCall: {
+          ear: "LR",
+          action: "LONGPRESSONE"
+        },
+        startSiri: {
+          ear: "LR",
+          action: "TRIPLECLICK"
+        },
+        volumeDown: {
+          ear: "R",
+          action: "LONGPRESSONE"
+        },
+        volumeUp: {
+          ear: "L",
+          action: "LONGPRESSONE"
+        }
+      })} title='config button actions' />
+
       <Text>connected device {connectedDevice?.name} </Text>
       <Button onPress={() => RNQccDfu.updateBluetoothDevices()} title='Update device list' />
 
       <Button onPress={() => RNQccDfu.startUpgrade(fireUri)} title='StartUpgrade' />
       <Text>upgrade process {process} </Text>
+
+      <Button onPress={() => RNQccDfu.updateAllEQInfo()} title='update EQ info' />
+      <Text>upgrade EQ info</Text>
+
+      <Button onPress={() => RNQccDfu.selectEQPreset(1)} title='select EQ Preset' />
+      <Text>select EQ preset</Text>
 
       <Button onPress={() => RNQccDfu.cancelUpgrade()} title='abort upgrade' />
       <Text>App version: {appVersion}</Text>
@@ -125,7 +208,7 @@ const App = () => {
         <Dialog.Title>Needs Confirmation</Dialog.Title>
         <Dialog.Description>Needs Confirmation: {confirmation?.confirmation}</Dialog.Description>
         {confirmation?.options.map(item => (
-          <Dialog.Button label={item} onPress={() => handleConfirmOption(item)} key={item} />
+          <Dialog.Button label={item} onPress={()=>handleConfirmOption(item)} key={item}/>
         ))}
       </Dialog.Container>
     </View>
@@ -139,13 +222,13 @@ interface BluetoothDevice {
   connected?: string
 }
 
-type ResultType = "SILENT_COMMIT" | "COMPLETE" | "UPGRADE_IN_PROGRESS_WITH_DIFFERENT_ID" | "ABORTED"
+type ResultType = "SILENT_COMMIT"|"COMPLETE"|"UPGRADE_IN_PROGRESS_WITH_DIFFERENT_ID"|"ABORTED"
 
 interface UpgradeResult {
   resultType: ResultType
 }
 
-type UpgradeState = "INITIALISATION" | "UPLOAD" | "VALIDATION" | "REBOOT" | "VERIFICATION" | "COMPLETE" | "END" | "RECONNECTING" | "ABORTING" | "ABORTED"
+type UpgradeState = "INITIALISATION"|"UPLOAD"|"VALIDATION"|"REBOOT"|"VERIFICATION"|"COMPLETE"|"END"|"RECONNECTING"|"ABORTING"|"ABORTED"
 
 interface UpgradeStateData {
   upgradeState: UpgradeState
@@ -153,6 +236,37 @@ interface UpgradeStateData {
 
 interface AppVersion {
   appVersion: string
+}
+
+type ButtonActions = "UNDIFINED"|"SINGLECLICK"|"DOUBLECLICK"|"TRIPLECLICK"|"LONGPRESSONE"|"LONGPRESSTHREE"
+type ButtonActionPosition = "L"|"R"|"LR"
+interface ButtonConf {
+  ear: ButtonActionPosition
+  action: ButtonActions
+}
+interface DefaultButtonConf {
+  pausePlay?: ButtonConf
+  preItem?: ButtonConf
+  nextItem?: ButtonConf
+  volumeUp?: ButtonConf
+  volumeDown?: ButtonConf
+  pickHang?: ButtonConf
+  screenCall?: ButtonConf
+  startSiri?: ButtonConf
+  cancelSiri?: ButtonConf
+}
+
+interface CurrentButtonConf extends DefaultButtonConf {
+  enabled: boolean
+}
+
+interface ButtonConfiguration {
+  defaultActions: DefaultButtonConf
+  currentActions: CurrentButtonConf
+}
+
+interface ButtonActionUpdateResult {
+  updateSuccess: boolean
 }
 
 interface UpgradeProcess {
@@ -165,6 +279,16 @@ interface UpgradeConfirmation {
   confirmation: "BATTERY_LOW_ON_DEVICE" | "COMMIT" | "IN_PROGRESS" | "TRANSFER_COMPLETE" | "WARNING_FILE_IS_DIFFERENT"
   options: Array<UpgradeOption>
 }
+
+interface EQStateResult {
+  ready: boolean
+}
+
+interface EQPreset {
+  name: string
+  value: number
+}
+type EQAvailablePresets = EQPreset[]
 
 const styles = StyleSheet.create({
   container: {
